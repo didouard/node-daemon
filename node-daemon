@@ -50,6 +50,10 @@ do_start_launch() {
     DAEMON_ARGS=$3
 
     [ ! -f $DAEMON_ARGS ] && echo "Script doesn't exist : $DAEMON_ARGS" && return 1
+    if [ !  -d '/var/log/node-daemon' ]; then
+	echo "Please create /var/log/node-daemon with the 'exploit' user"
+	exit 1
+    fi
 
     echo "Starting $DAEMON $DAEMON_ARGS"
     if [ "$VERBOSE" != no ]; then
@@ -64,7 +68,7 @@ do_start_launch() {
 	return 1
     fi
     start-stop-daemon --background --make-pidfile --start --quiet --pidfile $PIDFILE \
-	--exec $DAEMON --chuid exploit -- $DAEMON_ARGS
+	--exec $DAEMON --chuid exploit -- $DAEMON_ARGS > /var/log/node-daemon-`basename $DAEMON_ARGS` 2>&1
     case "$?" in
 	0|1) [ "$VERBOSE" != no ] && echo "OK" ;;
 	2) [ "$VERBOSE" != no ] && echo "Error" ;;
