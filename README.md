@@ -11,14 +11,18 @@
 # Variable
 
 List of js daemons
+
      DAEMONS="..."
 
 Debug level
+
       VERBOSE=yes/no
 
 User name or uid for witch file are launch
+
      USER="..."
 
 # Command to register node-daemon start-up
- update-rc.d node-daemon default
+
+  update-rc.d node-daemon default
 
