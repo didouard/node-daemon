@@ -15,7 +15,6 @@
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="launch nodejs daemon"
 NAME="node-daemon"
 NODE="node"
 DAEMON=`whereis $NODE |awk '{print $2}'`
@@ -47,10 +46,11 @@ find_daemon() {
     echo >&2 "DAEMONS : $DAEMONS"
 
     for daemon in $DAEMONS; do
-	[ `basename $daemon` = $REQUIRED ] && echo $daemon
+	[ `basename $daemon` = $REQUIRED ] && echo $daemon && return 0
     done 
     echo >&2 $1' not find on $DAEMONS in /etc/node-daemon/node-daemon.conf'
     echo "false"
+    return 1
 }
 
 do_start_launch() {
@@ -58,7 +58,9 @@ do_start_launch() {
     DAEMON=$2
     DAEMON_ARGS=$3
 
-    [ ! -f $DAEMON_ARGS ] && echo "Script doesn't exist : $DAEMON_ARGS" && return 1
+    [ ! -f $DAEMON_ARGS ] \
+      && echo "Script doesn't exist : $DAEMON_ARGS" \
+      && return 1
     if [ !  -d '/var/log/node-daemon' ]; then
 	echo "Please create /var/log/node-daemon with the 'exploit' user"
 	exit 1
@@ -71,13 +73,15 @@ do_start_launch() {
 	echo "PIDFILE : $PIDFILE"
     fi
 
-    start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON --test > /dev/null
+    start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON \
+	--test > /dev/null
     if [ "$?" -ne 0 ]; then
 	[ "$VERBOSE" != no ] && echo "Daemon already launch" 
 	return 1
     fi
-    start-stop-daemon --background --make-pidfile --start --quiet --pidfile $PIDFILE \
-	--exec $DAEMON --chuid exploit -- $DAEMON_ARGS > /var/log/node-daemon-`basename $DAEMON_ARGS` 2>&1
+    start-stop-daemon --background --make-pidfile --start --quiet \
+	--pidfile $PIDFILE --exec $DAEMON --chuid exploit -- $DAEMON_ARGS \
+	> /var/log/node-daemon-`basename $DAEMON_ARGS` 2>&1
     case "$?" in
 	0|1) [ "$VERBOSE" != no ] && echo "OK" ;;
 	2) [ "$VERBOSE" != no ] && echo "Error" ;;
@@ -88,7 +92,7 @@ do_start_launch() {
 do_start()
 {
     if [ ! -z "$1" ]; then
-	$DAEMON_ARGS=$( find_daemon $1 )
+	DAEMON_ARGS=$( find_daemon $1 )
 	[ 'false' = "$DAEMON_ARGS" ] && exit 1
 	PIDFILE=/var/run/$NAME-`basename $DAEMON_ARGS`.pid
 
@@ -111,17 +115,20 @@ do_stop_kill()
     PIDFILE=$1
     DAEMON=$DAEMON
 
-    [ ! -f $PIDFILE ] && echo "Pidfile doesn't exist : $PIDFILE" && return 1
+    [ ! -f $PIDFILE ] \
+      && echo "Pidfile doesn't exist : '$PIDFILE', is process launched ?" \
+      && return 1
 
     echo -n "Kill $DAEMON from $PIDFILE ... "    
 
     start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
     RETVAR=$?
-    [ "$RETVAR" = 0 ] && echo "OK" && return 0
+    [ "$RETVAR" = 0 ] && echo "OK" && rm -f $PIDFILE && return 0
     
-    start-stop-daemon --stop --quiet --oknodo --retry=0/30/KILL/5 --exec $DAEMON
+    start-stop-daemon --stop --quiet --oknodo --retry=0/30/KILL/5 \
+	--exec $DAEMON
     RETVAL=$?
-    [ "$RETVAR" = 0 ] && echo "OK" && return 0
+    [ "$RETVAR" = 0 ] && echo "OK" && rm -f $PIDFILE && return 0
     [ "$RETVAL" = 0 ] && "An error occured during killing process"
 
     rm -f $PIDFILE
@@ -183,11 +190,11 @@ case "$1" in
 	do_start $2
 	;;
   *)
-	#echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload}" >&2
 	echo "Usage: $SCRIPTNAME {start|stop|status|restart} [name]" >&2
-	echo "\t - name : specify action to only one daemon" >&2
+	echo "\t - name : specify action for only one script" >&2
+	echo -n "Check README on "
+	echo "https://github.com/didouard/node-daemon/blob/master/README.md" \
+	    >&2
 	exit 3
 	;;
 esac
-
-:
