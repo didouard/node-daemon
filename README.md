@@ -5,7 +5,7 @@
       /etc/init.d/node-daemon status
       /etc/init.d/node-daemon restart
 
-Or specify a uniq script
+Or specify one script
 
       /etc/init.d/node-daemon start daemon-1.js
       /etc/init.d/node-daemon stop daemon-1.js
