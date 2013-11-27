@@ -1,0 +1,1 @@
+A shell script to lauch node daemons with /etc/init.d

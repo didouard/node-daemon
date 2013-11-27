@@ -1,0 +1,179 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          skeleton
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Example initscript
+# Description:       This file should be used to construct scripts to be
+#                    placed in /etc/init.d.
+### END INIT INFO
+
+# Author: Foo Bar <foobar@baz.org>
+#
+# Please remove the "Author" lines above and replace them
+# with your own name if you copy and modify this script.
+
+# Do NOT "set -e"
+
+# PATH should only include /usr/* if it runs after the mountnfs.sh script
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="launch nodejs daemon"
+NAME="node-daemon"
+NODE="node"
+DAEMON=`whereis $NODE |awk '{print $2}'`
+DAEMON_ARGS=""
+SCRIPTNAME=/etc/init.d/$NAME
+
+# Exit if the package is not installed
+if [ ! -x $DAEMON ] ; then
+    echo "There is no daemon find '$DAEMON' as name"
+    exit 0
+fi
+# Read configuration variable file if it is present
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+
+# Load the VERBOSE setting and other rcS variables
+. /lib/init/vars.sh
+
+# Define LSB log_* functions.
+# Depend on lsb-base (>= 3.2-14) to ensure that this file is present
+# and status_of_proc is working.
+. /lib/lsb/init-functions
+
+VERBOSE=yes
+
+do_start_launch() {
+    PIDFILE=$1
+    DAEMON=$2
+    DAEMON_ARGS=$3
+
+    [ ! -f $DAEMON_ARGS ] && echo "Script doesn't exist : $DAEMON_ARGS" && return 1
+
+    echo "Starting $DAEMON $DAEMON_ARGS"
+    if [ "$VERBOSE" != no ]; then
+	echo "DAEMON : $DAEMON"
+	echo "DAEMON_ARGS : $DAEMON_ARGS"
+	echo "PIDFILE : $PIDFILE"
+    fi
+
+    start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON --test > /dev/null
+    if [ "$?" -ne 0 ]; then
+	[ "$VERBOSE" != no ] && echo "Daemon already launch" 
+	return 1
+    fi
+    start-stop-daemon --background --make-pidfile --start --quiet --pidfile $PIDFILE \
+	--exec $DAEMON --chuid exploit -- $DAEMON_ARGS
+    case "$?" in
+	0|1) [ "$VERBOSE" != no ] && echo "OK" ;;
+	2) [ "$VERBOSE" != no ] && echo "Error" ;;
+    esac
+    return 0
+}
+#
+# Function that starts the daemon/service
+#
+do_start()
+{
+    if [ ! -z "$1" ]; then
+	DAEMON_ARGS=$DAEMONS_PATH$1
+	PIDFILE=/var/run/$NAME-`basename $1`.pid
+
+	do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS
+    else
+	for DAEMON_NAME in $DAEMONS; do
+	    DAEMON_ARGS="$DAEMON_NAME"
+	    PIDFILE=/var/run/$NAME-`basename $DAEMON_NAME`.pid
+
+	    do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS || continue
+	done
+    fi
+}
+
+#
+# Function that stops the daemon/service
+#
+do_stop_kill()
+{
+    PIDFILE=$1
+    DAEMON=$DAEMON
+
+    [ ! -f $PIDFILE ] && echo "Pidfile doesn't exist : $PIDFILE" && return 1
+
+    echo "Kill $DAEMON from $PIDFILE"    
+
+    start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
+    RETVAR=$?
+    [ "$RETVAR" = 0 ] && echo "OK" && return 0
+    
+    start-stop-daemon --stop --quiet --oknodo --retry=0/30/KILL/5 --exec $DAEMON
+    RETVAL=$?
+    [ "$RETVAR" = 0 ] && echo "OK" && return 0
+    [ "$RETVAL" = 0 ] && "An error occured during killing process"
+
+    rm -f $PIDFILE
+    return "$RETVAL"
+}
+
+do_stop()
+{
+    if [ ! -z "$1" ]; then
+	PIDFILE=/var/run/$NAME-$1.pid
+
+	do_stop_kill $PIDFILE $DAEMON
+    else
+	for DAEMON_NAME in $DAEMONS; do
+	    PIDFILE=/var/run/$NAME-$DAEMON_NAME.pid
+
+	    do_stop_kill $PIDFILE $DAEMON || continue
+	done
+    fi
+}
+
+do_status_check() {
+    PIDFILE=$1
+    SCRIPT_NAME=$2
+
+    NULL=`ps aux | grep \`cat $1\` | grep -v grep`
+    [ $? -eq 0 ] && echo "$SCRIPT_NAME : OK" || echo "$SCRIPT_NAME : KO"
+}
+
+do_status()
+{
+    if [ ! -z "$1" ]; then
+	PIDFILE=/var/run/$NAME-$1.pid
+
+	do_status_check $PIDFILE $1
+    else
+	for DAEMON_NAME in $DAEMONS; do
+	    PIDFILE=/var/run/$NAME-$DAEMON_NAME.pid
+
+	    do_status_check $PIDFILE $DAEMON_NAME || continue
+	done
+    fi
+}
+
+case "$1" in
+  start)
+	do_start $2
+	;;
+  stop)
+	do_stop $2
+	;;
+  status)
+       do_status $2 && exit 0 || exit $?
+       ;;
+  restart)
+	do_stop $2
+	do_start $2
+	;;
+  *)
+	#echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload}" >&2
+	echo "Usage: $SCRIPTNAME {start|stop|status|restart} [name]" >&2
+	echo "\t - name : specify action to only one daemon" >&2
+	exit 3
+	;;
+esac
+
+:
