@@ -1,21 +1,17 @@
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:          skeleton
+# Provides:          node-daemon
 # Required-Start:    $remote_fs $syslog
 # Required-Stop:     $remote_fs $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Example initscript
-# Description:       This file should be used to construct scripts to be
-#                    placed in /etc/init.d.
+# Short-Description: nodejs deamon start-up launching
+# Description:       This script launch a list of nodejs daemon provide 
+#                    on /etc/node-daemon/node-daemon.conf
 ### END INIT INFO
 
-# Author: Foo Bar <foobar@baz.org>
+# Author: Edouard FERRARI <edouard.ferrari@gmail.com>
 #
-# Please remove the "Author" lines above and replace them
-# with your own name if you copy and modify this script.
-
-# Do NOT "set -e"
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
@@ -31,8 +27,6 @@ if [ ! -x $DAEMON ] ; then
     echo "There is no daemon find '$DAEMON' as name"
     exit 0
 fi
-# Read configuration variable file if it is present
-[ -r /etc/default/$NAME ] && . /etc/default/$NAME
 
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
@@ -42,7 +36,22 @@ fi
 # and status_of_proc is working.
 . /lib/lsb/init-functions
 
-VERBOSE=yes
+# Read configuration variable file if it is present
+[ -r /etc/$NAME/$NAME.conf ] \
+  && . /etc/$NAME/$NAME.conf \
+  || echo "Configuration file need to be configure : "/etc/$NAME/$NAME.conf
+
+find_daemon() {
+    REQUIRED=$1
+
+    echo >&2 "DAEMONS : $DAEMONS"
+
+    for daemon in $DAEMONS; do
+	[ `basename $daemon` = $REQUIRED ] && echo $daemon
+    done 
+    echo >&2 $1' not find on $DAEMONS in /etc/node-daemon/node-daemon.conf'
+    echo "false"
+}
 
 do_start_launch() {
     PIDFILE=$1
@@ -75,14 +84,13 @@ do_start_launch() {
     esac
     return 0
 }
-#
-# Function that starts the daemon/service
-#
+
 do_start()
 {
     if [ ! -z "$1" ]; then
-	DAEMON_ARGS=$DAEMONS_PATH$1
-	PIDFILE=/var/run/$NAME-`basename $1`.pid
+	$DAEMON_ARGS=$( find_daemon $1 )
+	[ 'false' = "$DAEMON_ARGS" ] && exit 1
+	PIDFILE=/var/run/$NAME-`basename $DAEMON_ARGS`.pid
 
 	do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS
     else
@@ -105,7 +113,7 @@ do_stop_kill()
 
     [ ! -f $PIDFILE ] && echo "Pidfile doesn't exist : $PIDFILE" && return 1
 
-    echo "Kill $DAEMON from $PIDFILE"    
+    echo -n "Kill $DAEMON from $PIDFILE ... "    
 
     start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
     RETVAR=$?
@@ -128,7 +136,7 @@ do_stop()
 	do_stop_kill $PIDFILE $DAEMON
     else
 	for DAEMON_NAME in $DAEMONS; do
-	    PIDFILE=/var/run/$NAME-$DAEMON_NAME.pid
+	    PIDFILE=/var/run/$NAME-`basename $DAEMON_NAME`.pid
 
 	    do_stop_kill $PIDFILE $DAEMON || continue
 	done
@@ -138,6 +146,8 @@ do_stop()
 do_status_check() {
     PIDFILE=$1
     SCRIPT_NAME=$2
+
+    [ ! -f $PIDFILE ] && echo "$SCRIPT_NAME : KO" && return 1
 
     NULL=`ps aux | grep \`cat $1\` | grep -v grep`
     [ $? -eq 0 ] && echo "$SCRIPT_NAME : OK" || echo "$SCRIPT_NAME : KO"
@@ -151,7 +161,7 @@ do_status()
 	do_status_check $PIDFILE $1
     else
 	for DAEMON_NAME in $DAEMONS; do
-	    PIDFILE=/var/run/$NAME-$DAEMON_NAME.pid
+	    PIDFILE=/var/run/$NAME-`basename $DAEMON_NAME`.pid
 
 	    do_status_check $PIDFILE $DAEMON_NAME || continue
 	done
