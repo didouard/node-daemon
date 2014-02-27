@@ -19,7 +19,13 @@ Or specify one script
 
 List of js daemons
 
-      DAEMONS="..."
+      DAEMONS="test1 test2"
+      DEAMON_test1="/path/to/file1.js"
+      DEAMON_test2="/path/to/file2.js"
+
+Directory for logs
+LOG_DIRECTORY="/var/log/node-daemon/"
+ERR_DIRECTORY="/var/log/node-daemon/"
 
 Debug level
 
