@@ -49,7 +49,7 @@ find_daemon() {
     echo >&2 "DAEMONS : $DAEMONS"
 
     for daemon in $DAEMONS; do
-	[ `basename $daemon` = $REQUIRED ] && echo $daemon && return 0
+	[ `basename $daemon` = $REQUIRED ] && echo ${"DEAMON_"${daemon}} && return 0
     done 
     echo >&2 $1' not find on $DAEMONS in /etc/node-daemon/node-daemon.conf'
     echo "false"
@@ -108,7 +108,7 @@ do_start()
 	do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS
     else
 	for DAEMON_NAME in $DAEMONS; do
-	    DAEMON_ARGS="$DAEMON_NAME"
+	    eval DAEMON_ARGS=\$DAEMON_$DAEMON_NAME
 	    PIDFILE=/var/run/$NAME-`basename $DAEMON_NAME`.pid
 
 	    do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS || continue
@@ -152,7 +152,7 @@ do_stop()
 	do_stop_kill $PIDFILE $DAEMON
     else
 	for DAEMON_NAME in $DAEMONS; do
-	    PIDFILE=/var/run/$NAME-`basename $DAEMON_NAME`.pid
+	    PIDFILE=/var/run/$NAME-$DAEMON_NAME.pid
 
 	    do_stop_kill $PIDFILE $DAEMON || continue
 	done
@@ -177,7 +177,7 @@ do_status()
 	do_status_check $PIDFILE $1
     else
 	for DAEMON_NAME in $DAEMONS; do
-	    PIDFILE=/var/run/$NAME-`basename $DAEMON_NAME`.pid
+	    PIDFILE=/var/run/$NAME-$DAEMON_NAME.pid
 
 	    do_status_check $PIDFILE $DAEMON_NAME || continue
 	done
