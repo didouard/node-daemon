@@ -43,25 +43,13 @@ if [ ! -x $USER ] ; then USER='root'; fi
   && . /etc/$NAME/$NAME.conf \
   || echo "Configuration file need to be configure : "/etc/$NAME/$NAME.conf
 
-find_daemon() {
-    REQUIRED=$1
-
-    echo >&2 "DAEMONS : $DAEMONS"
-
-    for daemon in $DAEMONS; do
-	[ `basename $daemon` = $REQUIRED ] && echo ${"DEAMON_"${daemon}} && return 0
-    done 
-    echo >&2 $1' not find on $DAEMONS in /etc/node-daemon/node-daemon.conf'
-    echo "false"
-    return 1
-}
-
 do_start_launch() {
     PIDFILE=$1
     DAEMON=$2
     DAEMON_ARGS=$3
-    LOG=$LOG_DIRECTORY"`basename $DAEMON_ARGS`"$LOG_SUFFIX
-    ERR=$ERR_DIRECTORY"`basename $DAEMON_ARGS`"$ERR_SUFFIX
+    DEAMON_NAME=$4
+    LOG=$LOG_DIRECTORY$DAEMON_NAME$LOG_SUFFIX
+    ERR=$ERR_DIRECTORY$DAEMON_NAME$ERR_SUFFIX
 
     [ ! -f $DAEMON_ARGS ] \
       && echo "Script doesn't exist : $DAEMON_ARGS" \
@@ -72,7 +60,7 @@ do_start_launch() {
 	exit 1
     fi
 
-    echo "Starting $DAEMON $DAEMON_ARGS"
+    echo "Starting $DAEMON $DAEMON_NAME"
     if [ "$VERBOSE" != no ]; then
 	echo "DAEMON : $DAEMON"
 	echo "DAEMON_ARGS : $DAEMON_ARGS"
@@ -101,17 +89,18 @@ do_start_launch() {
 do_start()
 {
     if [ ! -z "$1" ]; then
-	DAEMON_ARGS=$( find_daemon $1 )
-	[ 'false' = "$DAEMON_ARGS" ] && exit 1
-	PIDFILE=/var/run/$NAME-`basename $DAEMON_ARGS`.pid
+	DAEMON_NAME=$1
 
-	do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS
+	eval DAEMON_ARGS=\$DAEMON_$DAEMON_NAME
+	PIDFILE=/var/run/$NAME-$DAEMON_$DAEMON_NAME.pid
+
+	do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS $DEAMON_NAME
     else
 	for DAEMON_NAME in $DAEMONS; do
 	    eval DAEMON_ARGS=\$DAEMON_$DAEMON_NAME
-	    PIDFILE=/var/run/$NAME-`basename $DAEMON_NAME`.pid
+	    PIDFILE=/var/run/$NAME-$DAEMON_NAME.pid
 
-	    do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS || continue
+	    do_start_launch $PIDFILE $DAEMON $DAEMON_ARGS $DEAMON_NAME || continue
 	done
     fi
 }
