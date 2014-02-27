@@ -27,6 +27,9 @@ if [ ! -x $DAEMON ] ; then
     exit 0
 fi
 
+# Check User
+if [ ! -x $USER ] ; then USER='root'; fi
+
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
 
@@ -57,12 +60,15 @@ do_start_launch() {
     PIDFILE=$1
     DAEMON=$2
     DAEMON_ARGS=$3
+    LOG=$LOG_DIRECTORY"`basename $DAEMON_ARGS`"$LOG_SUFFIX
+    ERR=$ERR_DIRECTORY"`basename $DAEMON_ARGS`"$ERR_SUFFIX
 
     [ ! -f $DAEMON_ARGS ] \
       && echo "Script doesn't exist : $DAEMON_ARGS" \
       && return 1
     if [ !  -d '/var/log/node-daemon' ]; then
-	echo "Please create /var/log/node-daemon with the 'exploit' user"
+	echo "Please create /var/log/node-daemon with the $USER user"
+	echo "$> mkdir /var/log/node-daemon && chown -R $USER /var/log/node-daemon"
 	exit 1
     fi
 
@@ -71,6 +77,8 @@ do_start_launch() {
 	echo "DAEMON : $DAEMON"
 	echo "DAEMON_ARGS : $DAEMON_ARGS"
 	echo "PIDFILE : $PIDFILE"
+	echo "LOG : $LOG"
+	echo "LOG : $ERR"
     fi
 
     start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON \
@@ -80,8 +88,9 @@ do_start_launch() {
 	return 1
     fi
     start-stop-daemon --background --make-pidfile --start --quiet \
-	--pidfile $PIDFILE --exec $DAEMON --chuid exploit -- $DAEMON_ARGS \
-	> /var/log/node-daemon-`basename $DAEMON_ARGS` 2>&1
+	--pidfile $PIDFILE --exec $DAEMON --chuid $USER -- $DAEMON_ARGS \
+	>> $LOG
+        2>> $ERR
     case "$?" in
 	0|1) [ "$VERBOSE" != no ] && echo "OK" ;;
 	2) [ "$VERBOSE" != no ] && echo "Error" ;;
