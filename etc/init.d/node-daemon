@@ -38,6 +38,8 @@ if [ ! -x $USER ] ; then USER='root'; fi
 # and status_of_proc is working.
 . /lib/lsb/init-functions
 
+echo "#### SERVER_TYPE : $SERVER_TYPE"
+
 # Read configuration variable file if it is present
 [ -r /etc/$NAME/$NAME.conf ] \
   && . /etc/$NAME/$NAME.conf \
@@ -50,6 +52,7 @@ do_start_launch() {
     DEAMON_NAME=$4
     LOG=$LOG_DIRECTORY$DAEMON_NAME$LOG_SUFFIX
     ERR=$ERR_DIRECTORY$DAEMON_NAME$ERR_SUFFIX
+    DIRNAME=`dirname $DAEMON_ARGS`
 
     [ ! -f $DAEMON_ARGS ] \
       && echo "Script doesn't exist : $DAEMON_ARGS" \
@@ -60,17 +63,22 @@ do_start_launch() {
 	exit 1
     fi
 
+    # Env
+    environment=$(cat /etc/environment) 
+    for line in $environment
+    do
+	export "$line"
+    done;
+
     echo "Starting $DAEMON $DAEMON_NAME"
     if [ "$VERBOSE" != no ]; then
 	echo "DAEMON : $DAEMON"
 	echo "DAEMON_ARGS : $DAEMON_ARGS"
 	echo "PIDFILE : $PIDFILE"
+	echo "DIRNAME : $DIRNAME"
 	echo "LOG : $LOG"
 	echo "LOG : $ERR"
     fi
-
-    # DAEMON_ARGS lost all arg
-    eval DAEMON_ARGS=\$DAEMON_$DAEMON_NAME
 
     start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON \
 	--test > /dev/null
@@ -79,7 +87,7 @@ do_start_launch() {
 	return 1
     fi
     start-stop-daemon --background --make-pidfile --start --quiet \
-	--pidfile $PIDFILE --exec $DAEMON --chuid $USER -- $DAEMON_ARGS \
+	--pidfile $PIDFILE --exec $DAEMON --chuid $USER --chdir $DIRNAME -- $DAEMON_ARGS \
 	>> $LOG
         2>> $ERR
     case "$?" in
