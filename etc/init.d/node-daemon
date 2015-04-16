@@ -80,6 +80,9 @@ do_start_launch() {
 	echo "LOG : $ERR"
     fi
 
+    # DAEMON_ARGS lost all arg
+    eval DAEMON_ARGS=\$DAEMON_$DAEMON_NAME
+
     start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON \
 	--test > /dev/null
     if [ "$?" -ne 0 ]; then
